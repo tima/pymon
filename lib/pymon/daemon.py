@@ -1,6 +1,8 @@
-#!/usr/bin/env python
+import sys
+import os
+import time
+import atexit
 
-import sys, os, time, atexit
 from signal import SIGTERM
 
 class Daemon:
@@ -14,6 +16,29 @@ class Daemon:
         self.stdout = stdout
         self.stderr = stderr
         self.pidfile = pidfile
+
+    def writepid(self):
+        """
+        Write the process id to a pidfile. 
+        """
+        atexit.register(self.delpid) 
+        pid = str(os.getpid())
+        file(self.pidfile,'w+').write("%s\n" % pid)
+
+    def readpid(self):
+        """
+        Read pidfile and return the process id. Returns None rather than throw an IOError exception.
+        """
+	try:
+            pf = file(self.pidfile,'r')
+            pid = int(pf.read().strip())
+            pf.close()
+        except IOError:
+            pid = None
+        return pid
+
+    def delpid(self):
+        os.remove(self.pidfile)
 
     def daemonize(self):
         """
@@ -54,27 +79,14 @@ class Daemon:
         os.dup2(si.fileno(), sys.stdin.fileno())
         os.dup2(so.fileno(), sys.stdout.fileno())
         os.dup2(se.fileno(), sys.stderr.fileno())
-
-        # write pidfile
-        atexit.register(self.delpid)
-        pid = str(os.getpid())
-        file(self.pidfile,'w+').write("%s\n" % pid)
-
-    def delpid(self):
-        os.remove(self.pidfile)
+        self.writepid()
 
     def start(self):
         """
         Start the daemon
         """
         # Check for a pidfile to see if the daemon already runs
-        try:
-            pf = file(self.pidfile,'r')
-            pid = int(pf.read().strip())
-            pf.close()
-        except IOError:
-            pid = None
-
+        pid = self.readpid()
         if pid:
             message = "pidfile %s already exist. Daemon already running?\n"
             sys.stderr.write(message % self.pidfile)
@@ -89,13 +101,7 @@ class Daemon:
         Stop the daemon
         """
         # Get the pid from the pidfile
-        try:
-            pf = file(self.pidfile,'r')
-            pid = int(pf.read().strip())
-            pf.close()
-        except IOError:
-            pid = None
-
+        pid = self.readpid()
         if not pid:
             message = "pidfile %s does not exist. Daemon not running?\n"
             sys.stderr.write(message % self.pidfile)
