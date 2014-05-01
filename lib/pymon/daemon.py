@@ -26,20 +26,24 @@ class Daemon:
         self.stderr = stderr
         self.pidfile = pidfile
 
-    def writepid(self):
+    def writepid(self, pidfile=None):
         """
         Write the process id to a pidfile. 
         """
 
-        atexit.register(self.delpid)
+        if pidfile is None:
+            pidfile = self.pidfile
+        atexit.register(self.delpid, pidfile=pidfile)
         pid = str(os.getpid())
         file(self.pidfile, 'w+').write('%s\n' % pid)
 
-    def readpid(self):
+    def readpid(self, pidfile=None):
         """
         Read pidfile and return the process id. Returns None rather than throw an IOError exception.
         """
 
+        if pidfile is None:
+            pidfile = self.pidfile
         try:
             pf = file(self.pidfile, 'r')
             pid = int(pf.read().strip())
@@ -48,8 +52,10 @@ class Daemon:
             pid = None
         return pid
 
-    def delpid(self):
-        os.remove(self.pidfile)
+    def delpid(self, pidfile=None):
+        if pidfile is None:
+            pidfile = self.pidfile
+        os.remove(pidfile)
 
     def daemonize(self):
         """
@@ -102,7 +108,7 @@ class Daemon:
         os.dup2(se.fileno(), sys.stderr.fileno())
         self.writepid()
 
-    def start(self):
+    def start(self, daemonize=True):
         """
         Start the daemon
         """
@@ -118,7 +124,8 @@ class Daemon:
 
         # Start the daemon
 
-        self.daemonize()
+        if daemonize:
+	    self.daemonize()
         self.run()
 
     def stop(self):
@@ -149,12 +156,13 @@ class Daemon:
                 print str(err)
                 sys.exit(1)
 
-    def restart(self):
+    def restart(self,sleepsec=1):
         """
         Restart the daemon
         """
 
         self.stop()
+        time.sleep(sleepsec)
         self.start()
 
     def status(self):
@@ -182,5 +190,4 @@ class Daemon:
         You should override this method when you subclass Daemon. It will be called after the process has been
         daemonized by start() or restart().
         """
-
 
