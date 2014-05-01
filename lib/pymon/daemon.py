@@ -26,15 +26,16 @@ class Daemon:
         self.stderr = stderr
         self.pidfile = pidfile
 
-    def writepid(self, pidfile=None):
+    def writepid(self, pidfile=None, pid=None):
         """
         Write the process id to a pidfile. 
         """
 
         if pidfile is None:
             pidfile = self.pidfile
+	if pid is None:
+            pid = str(os.getpid())
         atexit.register(self.delpid, pidfile=pidfile)
-        pid = str(os.getpid())
         file(self.pidfile, 'w+').write('%s\n' % pid)
 
     def readpid(self, pidfile=None):
